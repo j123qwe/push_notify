@@ -16,5 +16,21 @@ Push Notifications
 #### Usage
 
 ```
-./apns <TOKEN> <VoLTE|VoWiFi>
+./apns.sh <TOKEN> <VoLTE|VoWiFi>
+```
+
+## fcm.sh
+
+#### Requirements
+
+* A properly configured **.variables** file defining the FCM Server Key.
+
+#### Notes
+
+* Example of a token is clKnhZRv4Dg:APA91bH6zi_leSdYHLYfuQtA3-3u7XjloGn76PQgTQu0dsOIWcWiWCBKV6uAeRMFzHKoFFpzOprymWIDxQLCZw7-k4KnXcvITccHragl12Vyozlt0ZvsmDW2X6cO39xoOqJWp9wdhNKQ
+
+#### Usage
+
+```
+./fcm.sh <TOKEN> <VoWiFi>
 ```
