@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Functions
-check_packages(){     
+check_packages(){
     DISTRO=$(cat /etc/*-release | grep ID_LIKE | cut -d= -f2)
     if [[ ${DISTRO} =~ "debian" ]]; then
         debian_package_install
@@ -18,8 +18,8 @@ check_packages(){
 debian_package_install(){
     PACKAGES="jq curl"
     TOINSTALL=()
-    for PKG in ${PACKAGES[@]}; do
-        dpkg -s ${PKG} &> /dev/null
+    for PKG in "${PACKAGES[@]}"; do
+        dpkg -s "${PKG}" &> /dev/null
         if [ $? -eq 1 ]; then
             TOINSTALL+=("${PKG}")
         elif [ $? -gt 1 ]; then
@@ -27,7 +27,7 @@ debian_package_install(){
             exit
         fi
     done
-    if [[ ! -z ${TOINSTALL[@]} ]]; then
+    if [[ ! -z ${TOINSTALL[*]} ]]; then
             sudo apt install -y "${TOINSTALL[@]}"
     fi
 }
@@ -50,8 +50,8 @@ fi
 
 check_fcm_token(){
 if [ -z ${TOKEN} ]; then
-    echo "Invalid token. Usage ./push.sh fcm <TOKEN> <VoWiFi>"
-    exit 1
+	echo "Invalid token. Usage ./push.sh fcm <TOKEN> <VoWiFi>"
+	exit 1
 elif [[ ${TOKEN} =~ ^[a-zA-Z0-9\:\_\-]{152}$ ]]; then
 	#Valid token
 	TOKEN=${TOKEN}
@@ -85,6 +85,36 @@ if [ -z ${FCM_SERVER_KEY} ]; then
 fi
 }
 
+check_variables(){
+## Check for valid variables file
+if [ ! -f .variables ]; then
+	echo "No .variables file defined."
+	exit 1
+else
+	source .variables
+fi
+}
+
+check_type(){
+## Check for valid type
+if [ -z ${TYPE} ]; then
+    echo "Invalid type. Usage ./push.sh <apns|fcm> <TOKEN> <VoLTE|VoWiFi>"
+    exit 1
+elif [ ${TYPE} == "VoLTE" ]; then
+    TOPIC=${VOLTE_TOPIC}
+	TRIGGER=entitlements-changed
+	CERT=volte.pem
+elif [ ${TYPE} == "VoWiFi" ]; then
+	APP=ap2004
+	TOPIC=${VOWIFI_TOPIC}
+	TRIGGER=provisioning-changed
+	CERT=vowifi.pem
+else
+    echo "Invalid type. Usage ./push.sh <apns|fcm> <TOKEN> <VoLTE|VoWiFi>"
+    exit 1
+fi
+}
+
 push_apns(){
 curl -v --tlsv1.2 \
 -d '{"entitlement-update":{"timestamp":"'${DATE}'","trigger-actions":["'${TRIGGER}'"],}}' \
@@ -103,52 +133,33 @@ curl --silent -X POST --header "Authorization: key=${FCM_SERVER_KEY}" \
 }
 
 ## Execution
-check_packages
+check_packages 
 
 SERVICE=$1 #apns or fcm
 TOKEN=$2 #Base64 or HEX for APNS, 152 char for FCM
 TYPE=$3 #VoLTE or VoWiFi
 
-## Check for valid variables file
-if [ ! -f .variables ]; then
-	echo "No .variables file defined."
-	exit 1
-else
-	source .variables
-fi
-
-## Check for valid service
-if [ -z ${TYPE} ]; then
-    echo "Invalid service. Usage ./push.sh <apns|fcm> <TOKEN> <VoLTE|VoWiFi>"
-    exit 1
-elif [ ${TYPE} == "VoLTE" ]; then
-    TOPIC=${VOLTE_TOPIC}
-	TRIGGER=entitlements-changed
-	CERT=volte.pem
-elif [ ${TYPE} == "VoWiFi" ]; then
-	APP=ap2004
-    TOPIC=${VOWIFI_TOPIC}
-	TRIGGER=provisioning-changed
-	CERT=vowifi.pem
-else
-    echo "Invalid service. Usage ./push.sh <apns|fcm> <VoLTE|VoWiFi>"
-    exit 1
-fi
-
 ## Assign variables
 DATE=$(date --iso-8601=seconds)
 
-## Execute service 
-if [ ${SERVICE} == "apns" ]; then
+## Execute service
+if [ -z ${SERVICE} ]; then
+    echo "Invalid service. Usage ./push.sh <apns|fcm> <TOKEN> <VoLTE|VoWiFi>"
+    exit 1
+elif [ ${SERVICE} == "apns" ]; then
+    check_variables
+    check_type
     check_apns_token
     check_apns_topic
     check_apns_cert
     push_apns
 elif [ ${SERVICE} == "fcm" ]; then
+    check_variables
+    check_type
     check_fcm_token
     check_fcm_server_key
     push_fcm
 else
-    echo "Invalid service."
-    exit 0
+    echo "Invalid service. Usage ./push.sh <apns|fcm> <TOKEN> <VoLTE|VoWiFi>"
+    exit 1
 fi
